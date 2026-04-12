@@ -8,3 +8,7 @@ __pycache__/
 *.swp
 custom_components/perfectdraft.zip
 
+.credentials*
+
+*.apk
+
