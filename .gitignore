@@ -12,3 +12,4 @@ custom_components/perfectdraft.zip
 
 *.apk
 
+.github-token
