@@ -46,6 +46,9 @@
       "firmware": { "name": "Firmware" },
       "mode": { "name": "Mode" },
       "keg_freshness": { "name": "Keg Freshness" }
+    },
+    "button": {
+      "mark_keg_changed": { "name": "Mark Keg Changed" }
     }
   },
   "options": {

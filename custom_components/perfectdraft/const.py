@@ -19,4 +19,9 @@ CONF_USER_ID = "user_id"
 CONF_MACHINE_ID = "machine_id"
 CONF_SCAN_INTERVAL = "scan_interval"
 
-PLATFORMS = ["sensor"]
+PLATFORMS = ["sensor", "button"]
+
+
+def keg_changed_signal(machine_id: str) -> str:
+    """Dispatcher signal fired when the keg is manually marked as changed."""
+    return f"{DOMAIN}_keg_changed_{machine_id}"
