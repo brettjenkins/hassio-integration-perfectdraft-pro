@@ -27,5 +27,5 @@
 
 - [x] 5.1 Syntax-check all modified/new files (`py_compile` + JSON validation — passed)
 - [x] 5.2 Unit-test the three detection triggers and the no-baseline guard against representative `(last_pours, last_volume) → (pours, volume)` transitions (incl. the "swap then immediate pour" case: pours 1, volume jump) — `tests/test_keg_detection.py`, 11 tests pass
-- [ ] 5.3 Build zip, deploy to HA: verify the button appears on the device, pressing it resets the freshness countdown to 30, and a simulated volume jump sets the insertion date (manual — user; do after installing the v0.3.0 release via HACS)
+- [x] 5.3 Build zip, deploy to HA: verify the button appears on the device, pressing it resets the freshness countdown to 30, and a simulated volume jump sets the insertion date (manual — verified on-device after installing the v0.3.0 release via HACS)
 - [x] 5.4 Bump `manifest.json` version (0.3.0) and commit
