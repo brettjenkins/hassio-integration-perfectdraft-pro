@@ -15,16 +15,16 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, keg_changed_signal
 from .coordinator import PerfectDraftDataUpdateCoordinator
+from .keg_detection import KEG_TOTAL_VOLUME, detect_keg_change
 
-KEG_TOTAL_VOLUME = 6.0  # litres
 KEG_FRESHNESS_DAYS = 30
-KEG_NEW_VOLUME_THRESHOLD = 5.5  # litres — above this + pours==0 means new keg
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -220,9 +220,10 @@ class PerfectDraftKegFreshnessSensor(
         self._attr_device_info = _device_info(coordinator)
         self._keg_inserted_at: datetime | None = None
         self._last_pours: int | None = None
+        self._last_volume: float | None = None
 
     async def async_added_to_hass(self) -> None:
-        """Restore keg insertion date from previous session."""
+        """Restore keg state from the previous session and subscribe to manual resets."""
         await super().async_added_to_hass()
 
         last_state = await self.async_get_last_state()
@@ -236,6 +237,18 @@ class PerfectDraftKegFreshnessSensor(
             pours = last_state.attributes.get("last_pours")
             if pours is not None:
                 self._last_pours = int(pours)
+            volume = last_state.attributes.get("last_volume")
+            if volume is not None:
+                self._last_volume = float(volume)
+
+        machine_id = (self.coordinator.data or {}).get("_machine_id", "unknown")
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                keg_changed_signal(machine_id),
+                self._handle_manual_keg_change,
+            )
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -243,6 +256,7 @@ class PerfectDraftKegFreshnessSensor(
         return {
             "keg_inserted_at": self._keg_inserted_at.isoformat() if self._keg_inserted_at else None,
             "last_pours": self._last_pours,
+            "last_volume": self._last_volume,
         }
 
     @callback
@@ -258,17 +272,37 @@ class PerfectDraftKegFreshnessSensor(
         volume = details.get("kegVolume")
 
         if pours is not None and volume is not None:
-            is_new_keg = (
-                pours == 0
-                and float(volume) > KEG_NEW_VOLUME_THRESHOLD
-                and self._last_pours != 0
-            )
-            if is_new_keg:
+            if detect_keg_change(
+                last_pours=self._last_pours,
+                last_volume=self._last_volume,
+                pours=int(pours),
+                volume=float(volume),
+            ):
                 self._keg_inserted_at = datetime.now(timezone.utc)
 
             self._last_pours = int(pours)
+            self._last_volume = float(volume)
 
         super()._handle_coordinator_update()
+
+    @callback
+    def _handle_manual_keg_change(self) -> None:
+        """Record the keg insertion as now in response to the manual button.
+
+        Rebaselines the tracked pour count and volume to the current readings
+        so automatic detection does not immediately re-fire.
+        """
+        self._keg_inserted_at = datetime.now(timezone.utc)
+
+        details = (self.coordinator.data or {}).get("details") or {}
+        pours = details.get("numberOfPoursSinceStartup")
+        volume = details.get("kegVolume")
+        if pours is not None:
+            self._last_pours = int(pours)
+        if volume is not None:
+            self._last_volume = float(volume)
+
+        self.async_write_ha_state()
 
     @property
     def native_value(self) -> int | None:
