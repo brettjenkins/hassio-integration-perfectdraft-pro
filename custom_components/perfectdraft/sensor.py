@@ -334,17 +334,25 @@ class PerfectDraftKegFreshnessSensor(
 
         self.async_write_ha_state()
 
+    def _inserted_at(self) -> datetime | None:
+        """The current insertion date, preferring the live API value."""
+        if self.coordinator.data:
+            reported = _keg_inserted_at(self.coordinator.data)
+            if reported is not None:
+                return reported
+        return self._keg_inserted_at
+
     @property
     def native_value(self) -> int | None:
-        if self._keg_inserted_at is None:
+        inserted = self._inserted_at()
+        if inserted is None:
             return None
-        elapsed = (datetime.now(timezone.utc) - self._keg_inserted_at).days
-        remaining = KEG_FRESHNESS_DAYS - elapsed
-        return max(remaining, 0)
+        elapsed = (datetime.now(timezone.utc) - inserted).days
+        return max(KEG_FRESHNESS_DAYS - elapsed, 0)
 
     @property
     def available(self) -> bool:
-        return super().available and self._keg_inserted_at is not None
+        return super().available and self._inserted_at() is not None
 
 
 def _device_info(
