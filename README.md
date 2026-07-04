@@ -7,6 +7,7 @@ A Home Assistant custom integration for the [PerfectDraft Pro](https://www.perfe
 | Sensor | Description | Unit |
 |--------|-------------|------|
 | Temperature | Current beer temperature | °C |
+| Keg | Name of the tapped beer, resolved from a bundled catalog | — |
 | Keg Remaining | Beer left in the keg | % |
 | Keg Freshness | Days remaining until 30-day freshness expires | days |
 | Connection | Machine connectivity status | — |
@@ -71,4 +72,4 @@ Install via HACS (Dashboard category) or see the [card repository](https://githu
 
 The integration communicates with PerfectDraft's cloud API to read your machine's telemetry data. Token refresh is handled automatically via AWS Cognito — no reCAPTCHA needed after the initial setup.
 
-For the full technical story of how this integration was reverse-engineered, see [DISCOVERY.md](DISCOVERY.md).
+The Keg sensor resolves the machine's reported product id to a beer name using a bundled lookup table.

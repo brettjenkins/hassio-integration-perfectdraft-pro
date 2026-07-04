@@ -1,8 +1,11 @@
 """Sensor entities for PerfectDraft."""
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable
 
 from homeassistant.components.sensor import (
@@ -24,7 +27,21 @@ from .const import DOMAIN, keg_changed_signal
 from .coordinator import PerfectDraftDataUpdateCoordinator
 from .keg_detection import KEG_TOTAL_VOLUME, detect_keg_change
 
+_LOGGER = logging.getLogger(__name__)
+
 KEG_FRESHNESS_DAYS = 30
+
+
+def _load_keg_catalog() -> dict[int, str]:
+    try:
+        raw = json.loads((Path(__file__).parent / "keg_catalog.json").read_text())
+        return {int(k): v for k, v in raw.items()}
+    except (OSError, ValueError) as err:
+        _LOGGER.debug("Could not load keg catalog: %s", err)
+        return {}
+
+
+_KEG_CATALOG: dict[int, str] = _load_keg_catalog()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -98,6 +115,13 @@ def _get_keg_product_id(data: dict) -> int | None:
         return None
 
 
+def _get_keg_name(data: dict) -> str | None:
+    product_id = _get_keg_product_id(data)
+    if product_id is None:
+        return None
+    return _KEG_CATALOG.get(product_id)
+
+
 def _keg_inserted_at(data: dict) -> datetime | None:
     iso = (data.get("kegActive") or {}).get("insertedAt")
     if not iso:
@@ -132,6 +156,12 @@ SENSOR_DESCRIPTIONS: tuple[PerfectDraftSensorDescription, ...] = (
         translation_key="keg_product_id",
         icon="mdi:barcode",
         value_fn=_get_keg_product_id,
+    ),
+    PerfectDraftSensorDescription(
+        key="keg_name",
+        translation_key="keg_name",
+        icon="mdi:beer",
+        value_fn=_get_keg_name,
     ),
     PerfectDraftSensorDescription(
         key="connection",
