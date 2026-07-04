@@ -88,6 +88,26 @@ def _get_mode(data: dict) -> str | None:
     return setting.get("mode")
 
 
+def _get_keg_product_id(data: dict) -> int | None:
+    ref = (data.get("kegActive") or {}).get("keg")
+    if not ref:
+        return None
+    try:
+        return int(str(ref).rstrip("/").rsplit("/", 1)[-1])
+    except ValueError:
+        return None
+
+
+def _keg_inserted_at(data: dict) -> datetime | None:
+    iso = (data.get("kegActive") or {}).get("insertedAt")
+    if not iso:
+        return None
+    try:
+        return datetime.fromisoformat(iso)
+    except (ValueError, TypeError):
+        return None
+
+
 SENSOR_DESCRIPTIONS: tuple[PerfectDraftSensorDescription, ...] = (
     PerfectDraftSensorDescription(
         key="temperature",
@@ -106,6 +126,12 @@ SENSOR_DESCRIPTIONS: tuple[PerfectDraftSensorDescription, ...] = (
         icon="mdi:keg",
         suggested_display_precision=0,
         value_fn=_get_volume_remaining,
+    ),
+    PerfectDraftSensorDescription(
+        key="keg_product_id",
+        translation_key="keg_product_id",
+        icon="mdi:barcode",
+        value_fn=_get_keg_product_id,
     ),
     PerfectDraftSensorDescription(
         key="connection",
@@ -200,9 +226,10 @@ class PerfectDraftKegFreshnessSensor(
 ):
     """Tracks keg freshness as a 30-day countdown from insertion.
 
-    Detects new keg insertion when numberOfPoursSinceStartup resets to 0
-    and kegVolume is near full. Persists the insertion timestamp across
-    HA restarts via RestoreEntity.
+    Prefers the insertion date reported by the API's active keg. When that is
+    unavailable it falls back to detecting insertion locally (pour count reset
+    with a near-full keg). The date is persisted across HA restarts via
+    RestoreEntity.
     """
 
     _attr_has_entity_name = True
@@ -261,27 +288,30 @@ class PerfectDraftKegFreshnessSensor(
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Detect new keg insertion on each data update."""
+        """Update the insertion date on each poll."""
         data = self.coordinator.data
         if not data:
             super()._handle_coordinator_update()
             return
 
-        details = data.get("details") or {}
-        pours = details.get("numberOfPoursSinceStartup")
-        volume = details.get("kegVolume")
+        reported = _keg_inserted_at(data)
+        if reported is not None:
+            self._keg_inserted_at = reported
+        else:
+            details = data.get("details") or {}
+            pours = details.get("numberOfPoursSinceStartup")
+            volume = details.get("kegVolume")
+            if pours is not None and volume is not None:
+                if detect_keg_change(
+                    last_pours=self._last_pours,
+                    last_volume=self._last_volume,
+                    pours=int(pours),
+                    volume=float(volume),
+                ):
+                    self._keg_inserted_at = datetime.now(timezone.utc)
 
-        if pours is not None and volume is not None:
-            if detect_keg_change(
-                last_pours=self._last_pours,
-                last_volume=self._last_volume,
-                pours=int(pours),
-                volume=float(volume),
-            ):
-                self._keg_inserted_at = datetime.now(timezone.utc)
-
-            self._last_pours = int(pours)
-            self._last_volume = float(volume)
+                self._last_pours = int(pours)
+                self._last_volume = float(volume)
 
         super()._handle_coordinator_update()
 
