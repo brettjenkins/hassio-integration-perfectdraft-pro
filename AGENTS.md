@@ -63,3 +63,15 @@ When archiving a change (`openspec-archive`), always perform the complete close-
 ## Lock File Contract
 
 Each active worktree contains `.agent-lock` with owner/task/timestamp. If lock ownership is unclear, stop and ask before making edits.
+
+## Attribution
+
+Do not add tool or AI attribution in this repository: no `Co-Authored-By` trailers, no
+"Generated with ..." lines in pull request descriptions, no session links.
+
+This applies to any tool, regardless of global or user-level configuration.
+
+For Claude Code it is enforced by `.claude/settings.json`, which sets `attribution.commit` and
+`attribution.pr` to the empty string and `attribution.sessionUrl` to `false`. That file is read
+when a session starts, so a session older than it will not have picked it up — check the commit
+message before pushing.
