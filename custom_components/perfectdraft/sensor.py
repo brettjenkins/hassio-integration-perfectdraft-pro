@@ -15,7 +15,13 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfPressure, UnitOfTemperature
+from homeassistant.const import (
+    PERCENTAGE,
+    EntityCategory,
+    UnitOfPressure,
+    UnitOfTemperature,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -42,6 +48,18 @@ def _load_keg_catalog() -> dict[int, str]:
 
 
 _KEG_CATALOG: dict[int, str] = _load_keg_catalog()
+
+
+def _load_version() -> str | None:
+    try:
+        raw = json.loads((Path(__file__).parent / "manifest.json").read_text())
+        return str(raw.get("version")) if raw.get("version") else None
+    except (OSError, ValueError) as err:
+        _LOGGER.debug("Could not read manifest version: %s", err)
+        return None
+
+
+_VERSION: str | None = _load_version()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -217,6 +235,22 @@ SENSOR_DESCRIPTIONS: tuple[PerfectDraftSensorDescription, ...] = (
         icon="mdi:thermostat",
         value_fn=_get_mode,
     ),
+    PerfectDraftSensorDescription(
+        key="integration_version",
+        translation_key="integration_version",
+        icon="mdi:package-variant",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: _VERSION,
+    ),
+)
+
+UPDATE_INTERVAL_DESCRIPTION = PerfectDraftSensorDescription(
+    key="update_interval",
+    translation_key="update_interval",
+    device_class=SensorDeviceClass.DURATION,
+    native_unit_of_measurement=UnitOfTime.SECONDS,
+    icon="mdi:timer-refresh-outline",
+    entity_category=EntityCategory.DIAGNOSTIC,
 )
 
 
@@ -233,6 +267,7 @@ async def async_setup_entry(
         for description in SENSOR_DESCRIPTIONS
     ]
     entities.append(PerfectDraftKegFreshnessSensor(coordinator))
+    entities.append(PerfectDraftUpdateIntervalSensor(coordinator))
 
     async_add_entities(entities)
 
@@ -262,6 +297,18 @@ class PerfectDraftSensor(
         if not data:
             return None
         return self.entity_description.value_fn(data)
+
+
+class PerfectDraftUpdateIntervalSensor(PerfectDraftSensor):
+    """The coordinator's polling interval, so consumers can pace themselves."""
+
+    def __init__(self, coordinator: PerfectDraftDataUpdateCoordinator) -> None:
+        super().__init__(coordinator, UPDATE_INTERVAL_DESCRIPTION)
+
+    @property
+    def native_value(self) -> int | None:
+        interval = self.coordinator.update_interval
+        return int(interval.total_seconds()) if interval else None
 
 
 class PerfectDraftKegFreshnessSensor(
