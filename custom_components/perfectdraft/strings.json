@@ -48,6 +48,8 @@
       "keg_pressure": { "name": "Keg Pressure" },
       "firmware": { "name": "Firmware" },
       "mode": { "name": "Mode" },
+      "update_interval": { "name": "Update Interval" },
+      "integration_version": { "name": "Integration Version" },
       "keg_freshness": { "name": "Keg Freshness" }
     },
     "button": {
