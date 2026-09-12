@@ -50,10 +50,18 @@ def _load_keg_catalog() -> dict[int, str]:
 _KEG_CATALOG: dict[int, str] = _load_keg_catalog()
 
 
+# This fork shares the domain, the entity ids and the version numbering with upstream, so
+# nothing downstream can tell them apart from the version alone. The Integration version
+# sensor therefore reports the manifest version with this fork tag appended, as semver build
+# metadata (0.6.1+brettjenkins), which version comparisons ignore and a consumer can check.
+FORK_TAG = "brettjenkins"
+
+
 def _load_version() -> str | None:
     try:
         raw = json.loads((Path(__file__).parent / "manifest.json").read_text())
-        return str(raw.get("version")) if raw.get("version") else None
+        version = raw.get("version")
+        return f"{version}+{FORK_TAG}" if version else None
     except (OSError, ValueError) as err:
         _LOGGER.debug("Could not read manifest version: %s", err)
         return None

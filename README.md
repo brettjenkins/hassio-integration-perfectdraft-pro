@@ -18,7 +18,7 @@ A Home Assistant custom integration for the [PerfectDraft Pro](https://www.perfe
 | Mode | Current operating mode (standard, eco, etc.) | — |
 | Firmware | Machine firmware version (disabled by default) | — |
 | Update Interval | How often the integration polls PerfectDraft (diagnostic) | s |
-| Integration Version | Version of this integration (diagnostic) | — |
+| Integration Version | Version of this integration, with a `+brettjenkins` fork tag (diagnostic) | — |
 
 ## Installation
 
