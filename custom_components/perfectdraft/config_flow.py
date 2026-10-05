@@ -31,6 +31,12 @@ _LOGGER = logging.getLogger(__name__)
 
 CONF_RECAPTCHA_TOKEN = "recaptcha_token"
 
+_AUTH_ERROR_KEYS = {
+    "credentials": "invalid_credentials",
+    "token": "token_rejected",
+    "other": "invalid_auth",
+}
+
 
 class PerfectDraftConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for PerfectDraft."""
@@ -40,6 +46,7 @@ class PerfectDraftConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._email: str | None = None
         self._password: str | None = None
+        self._placeholders: dict[str, str] = {"reason": ""}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -81,7 +88,12 @@ class PerfectDraftConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             except AuthenticationError as err:
                 _LOGGER.error("Authentication failed: %s", err)
-                errors["base"] = "invalid_auth"
+                errors["base"] = _AUTH_ERROR_KEYS[err.kind]
+                self._placeholders = {"reason": err.display_reason}
+                if errors["base"] == "invalid_credentials":
+                    # A fresh token will not help; send the user back to the
+                    # credentials form instead of looping on the token step.
+                    return self._show_credentials_form(errors)
             except PerfectDraftConnectionError as err:
                 _LOGGER.error("Connection failed: %s", err)
                 errors["base"] = "cannot_connect"
@@ -95,19 +107,27 @@ class PerfectDraftConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "cannot_connect"
                 else:
                     machine_id = _extract_machine_id(profile)
+                    data = {
+                        CONF_EMAIL: self._email,
+                        CONF_ACCESS_TOKEN: client.access_token,
+                        CONF_ID_TOKEN: client.id_token,
+                        CONF_REFRESH_TOKEN: client.refresh_token,
+                        CONF_MACHINE_ID: machine_id,
+                    }
+
+                    if self.source == config_entries.SOURCE_REAUTH:
+                        # Store the new tokens on the existing entry and reload
+                        # it; the unique-ID abort below would discard them.
+                        return self.async_update_reload_and_abort(
+                            self._get_reauth_entry(), data_updates=data
+                        )
 
                     await self.async_set_unique_id(self._email.lower())
                     self._abort_if_unique_id_configured()
 
                     return self.async_create_entry(
                         title=f"PerfectDraft ({self._email})",
-                        data={
-                            CONF_EMAIL: self._email,
-                            CONF_ACCESS_TOKEN: client.access_token,
-                            CONF_ID_TOKEN: client.id_token,
-                            CONF_REFRESH_TOKEN: client.refresh_token,
-                            CONF_MACHINE_ID: machine_id,
-                        },
+                        data=data,
                     )
 
         return self.async_show_form(
@@ -118,6 +138,24 @@ class PerfectDraftConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+            description_placeholders=self._placeholders,
+        )
+
+    def _show_credentials_form(
+        self, errors: dict[str, str]
+    ) -> config_entries.ConfigFlowResult:
+        """Re-show the email/password form for this flow (setup or reauth)."""
+        reauth = self.source == config_entries.SOURCE_REAUTH
+        return self.async_show_form(
+            step_id="reauth_confirm" if reauth else "user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_EMAIL, default=self._email or ""): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+            errors=errors,
+            description_placeholders=self._placeholders,
         )
 
     async def async_step_reauth(

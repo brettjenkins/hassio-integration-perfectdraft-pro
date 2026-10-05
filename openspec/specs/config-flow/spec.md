@@ -24,8 +24,16 @@ The config flow SHALL present a form requesting a reCAPTCHA verification token a
 - **THEN** it SHALL create a config entry storing email, access token, ID token, refresh token, and machine ID
 
 #### Scenario: Invalid or expired token
-- **WHEN** authentication fails
-- **THEN** the flow SHALL show an error and allow the user to retry with a fresh token
+- **WHEN** authentication fails because the verification token was rejected (`UserLambdaValidationException`)
+- **THEN** the flow SHALL show the `token_rejected` error including the server's reason, and allow the user to retry with a fresh token
+
+#### Scenario: Wrong email or password
+- **WHEN** authentication fails with `NotAuthorizedException` or `UserNotFoundException`
+- **THEN** the flow SHALL return to the email/password form (the reauth form during reauth) with the `invalid_credentials` error including the server's reason
+
+#### Scenario: Other authentication failure
+- **WHEN** authentication fails for any other reason
+- **THEN** the flow SHALL show the `invalid_auth` error including the server's reason, and allow a retry with a fresh token
 
 #### Scenario: API unreachable
 - **WHEN** the API is unreachable
@@ -45,7 +53,7 @@ The integration SHALL support HA's reauth mechanism when the refresh token expir
 - **WHEN** the coordinator detects that token refresh has failed
 - **THEN** HA SHALL prompt the user to re-authenticate
 - **THEN** the reauth flow SHALL collect email, password, and a fresh token
-- **THEN** on success, the config entry SHALL be updated with new tokens
+- **THEN** on success, the existing config entry SHALL be updated with the new tokens and reloaded (not aborted as already configured)
 
 ### Requirement: Options flow for polling interval
 The integration SHALL provide an OptionsFlow to change the polling interval.
