@@ -5,8 +5,40 @@ class PerfectDraftError(Exception):
     """Base exception for PerfectDraft."""
 
 
+# Cognito error types that mean the email/password pair itself is wrong, as
+# opposed to the reCAPTCHA token being rejected by the PreAuthentication Lambda.
+_CREDENTIAL_ERROR_CODES = frozenset({"NotAuthorizedException", "UserNotFoundException"})
+_TOKEN_ERROR_CODES = frozenset({"UserLambdaValidationException"})
+
+
 class AuthenticationError(PerfectDraftError):
-    """Raised when authentication fails (bad credentials, expired refresh token, reCAPTCHA rejection)."""
+    """Raised when authentication fails (bad credentials, expired refresh token, reCAPTCHA rejection).
+
+    ``code`` is the Cognito error type (e.g. ``NotAuthorizedException``) and
+    ``reason`` its human-readable message, when the server supplied them.
+    """
+
+    def __init__(
+        self, message: str, code: str | None = None, reason: str | None = None
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.reason = reason
+
+    @property
+    def kind(self) -> str:
+        """Classify the failure: ``credentials``, ``token`` or ``other``."""
+        if self.code in _CREDENTIAL_ERROR_CODES:
+            return "credentials"
+        if self.code in _TOKEN_ERROR_CODES:
+            return "token"
+        return "other"
+
+    @property
+    def display_reason(self) -> str:
+        """Server-supplied reason for showing to the user, never empty."""
+        text = (self.reason or self.code or "").strip().rstrip(".")
+        return text or "no reason given"
 
 
 class PerfectDraftApiError(PerfectDraftError):

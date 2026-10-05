@@ -5,9 +5,13 @@ API_KEY = "cAyzERqthCJXYVExjNAhr9CzE8ncLN2cQK3WGK10"
 
 RECAPTCHA_SITE_KEY = "6LcZQiUoAAAAAAO3JUjLiT470c-pNXbWyepuvMtV"
 RECAPTCHA_ACTION = "Magento/login"
+# PerfectDraft's Cognito PreAuthentication Lambda rejects sign-in unless the
+# client metadata names the site the reCAPTCHA token was minted on.
+RECAPTCHA_DOMAIN = "https://www.perfectdraft.com"
 
 COGNITO_REGION = "eu-west-1"
 COGNITO_CLIENT_ID = "57ddq2ppqg2jcpup06r2g1deur"
+COGNITO_IDP_URL = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/"
 
 DEFAULT_SCAN_INTERVAL = 900  # 15 minutes
 MIN_SCAN_INTERVAL = 60  # 1 minute
