@@ -1,10 +1,10 @@
 {
   "domain": "perfectdraft",
   "name": "PerfectDraft",
-  "version": "0.6.2",
-  "documentation": "https://github.com/Falkvinge/hassio-integration-perfectdraft-pro",
-  "issue_tracker": "https://github.com/Falkvinge/hassio-integration-perfectdraft-pro/issues",
-  "codeowners": ["@Falkvinge"],
+  "version": "0.6.3",
+  "documentation": "https://github.com/brettjenkins/hassio-integration-perfectdraft-pro",
+  "issue_tracker": "https://github.com/brettjenkins/hassio-integration-perfectdraft-pro/issues",
+  "codeowners": ["@brettjenkins"],
   "config_flow": true,
   "iot_class": "cloud_polling",
   "requirements": []
