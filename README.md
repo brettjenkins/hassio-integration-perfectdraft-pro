@@ -2,6 +2,8 @@
 
 A Home Assistant custom integration for the [PerfectDraft Pro](https://www.perfectdraft.com/) beer dispenser. Monitor your keg's temperature, remaining volume, pour history, and more — right from your HA dashboard.
 
+This fork is maintained for the [seemy.beer](https://seemy.beer) tap sign, and some of the sign's features need it rather than upstream. If you use a seemy.beer sign in Home Assistant mode, install this version. It is based on [Falkvinge/hassio-integration-perfectdraft-pro](https://github.com/Falkvinge/hassio-integration-perfectdraft-pro), which did the original work.
+
 ## Sensors
 
 | Sensor | Description | Unit |
